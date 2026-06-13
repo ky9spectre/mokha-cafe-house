@@ -1,11 +1,34 @@
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+
+function getStoredUser() {
+  const token = localStorage.getItem('token')
+  const stored = localStorage.getItem('user')
+  if (token && stored) {
+    try {
+      return JSON.parse(stored)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
+  const [user, setUser] = useState(getStoredUser)
   const location = useLocation()
+  const navigate = useNavigate()
+
+  const logout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    setUser(null)
+    navigate('/')
+  }
+
   const links = [
     { to: '/', label: 'Home' },
     { to: '/menu', label: 'Menu' },
@@ -36,6 +59,20 @@ export default function Navbar() {
               </Link>
             ))}
           </div>
+
+          {/* Desktop Auth Buttons */}
+          {user ? (
+            <div className="hidden md:flex items-center gap-4">
+              <span className="text-coffee-100 text-sm truncate max-w-[120px]">{user.email}</span>
+              <button onClick={logout} className="text-sm text-coffee-100 hover:text-gold">Logout</button>
+            </div>
+          ) : (
+            <div className="hidden md:flex items-center gap-4">
+              <Link to="/login" className="text-sm text-coffee-100 hover:text-gold">Login</Link>
+              <Link to="/register" className="text-sm bg-gold text-coffee-900 px-3 py-1 rounded-full hover:bg-yellow-600 transition-colors">Sign Up</Link>
+            </div>
+          )}
+
           <button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Toggle menu">
             {open ? <X /> : <Menu />}
           </button>
@@ -62,6 +99,18 @@ export default function Navbar() {
                   {l.label}
                 </Link>
               ))}
+              <div className="border-t border-coffee-600 my-1" />
+              {user ? (
+                <>
+                  <div className="py-2 text-sm text-coffee-100">{user.email}</div>
+                  <button onClick={() => { setOpen(false); logout(); }} className="text-left py-2 text-sm text-coffee-100 hover:text-gold">Logout</button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setOpen(false)} className="py-2 text-sm text-coffee-100 hover:text-gold">Login</Link>
+                  <Link to="/register" onClick={() => setOpen(false)} className="py-2 text-sm text-coffee-100 hover:text-gold">Sign Up</Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}

@@ -8,6 +8,8 @@ import Blog from './pages/Blog'
 import BlogPost from './pages/BlogPost'
 import Reviews from './pages/Reviews'
 import Contact from './pages/Contact'
+import Login from './pages/Login'
+import Register from './pages/Register'
 
 function Layout({ children }) {
   return (
@@ -31,6 +33,8 @@ function App() {
 <Route path="/blog/:id" element={<BlogPost />} />
           <Route path="/reviews" element={<Reviews />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
         </Routes>
       </Layout>
     </Router>

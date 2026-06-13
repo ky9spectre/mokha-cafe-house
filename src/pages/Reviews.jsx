@@ -1,22 +1,63 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Star, Send } from 'lucide-react'
-import { reviews } from '../data/mokha'
 
 export default function Reviews() {
   const [newReview, setNewReview] = useState({ author: '', text: '', rating: 5 })
   const [submitted, setSubmitted] = useState(false)
-  const [allReviews, setAllReviews] = useState(reviews)
+  const [error, setError] = useState('')
+  const [allReviews, setAllReviews] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const submitReview = (e) => {
+  // Fetch reviews on mount
+  useEffect(() => {
+    fetch('/api/reviews')
+      .then(res => res.json())
+      .then(data => {
+        setAllReviews(data)
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error('Failed to fetch reviews:', err)
+        setLoading(false)
+      })
+  }, [])
+
+  const submitReview = async (e) => {
     e.preventDefault()
-    setAllReviews([{ id: Date.now(), ...newReview, date: new Date().toISOString().split('T')[0] }, ...allReviews])
-    setNewReview({ author: '', text: '', rating: 5 })
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 3000)
+    setError('')
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setError('Please log in to submit a review.')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          author_name: newReview.author,
+          rating: newReview.rating,
+          text: newReview.text,
+          date: new Date().toISOString().split('T')[0]
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to submit review')
+      setAllReviews([data, ...allReviews])
+      setNewReview({ author: '', text: '', rating: 5 })
+      setSubmitted(true)
+      setTimeout(() => setSubmitted(false), 3000)
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
-  const avgRating = (allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length).toFixed(1)
+  const avgRating = allReviews.length ? (allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length).toFixed(1) : '0.0'
 
   return (
     <div className="bg-cream min-h-screen">
@@ -39,29 +80,34 @@ export default function Reviews() {
               </div>
             </div>
 
-            <div className="space-y-6">
-              {allReviews.map(review => (
-                <motion.div key={review.id} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="bg-white p-6 rounded-xl shadow-sm border border-coffee-100">
-                  <div className="flex items-center gap-3 mb-3">
-                    <img src={review.image} alt={review.author} className="w-10 h-10 rounded-full object-cover" />
-                    <div>
-                      <p className="font-semibold text-coffee-800">{review.author}</p>
-                      <p className="text-xs text-coffee-400">{review.date}</p>
+            {loading ? (
+              <p className="text-coffee-600">Loading reviews...</p>
+            ) : (
+              <div className="space-y-6">
+                {allReviews.map(review => (
+                  <motion.div key={review.id} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="bg-white p-6 rounded-xl shadow-sm border border-coffee-100">
+                    <div className="flex items-center gap-3 mb-3">
+                      {review.image && <img src={review.image} alt={review.author} className="w-10 h-10 rounded-full object-cover" />}
+                      <div>
+                        <p className="font-semibold text-coffee-800">{review.author_name || review.author}</p>
+                        <p className="text-xs text-coffee-400">{review.date}</p>
+                      </div>
+                      <div className="ml-auto flex gap-0.5 text-gold">
+                        {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4" fill={s <= review.rating ? 'currentColor' : 'none'} />)}
+                      </div>
                     </div>
-                    <div className="ml-auto flex gap-0.5 text-gold">
-                      {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4" fill={s <= review.rating ? 'currentColor' : 'none'} />)}
-                    </div>
-                  </div>
-                  <p className="text-coffee-600 italic">"{review.text}"</p>
-                </motion.div>
-              ))}
-            </div>
+                    <p className="text-coffee-600 italic">"{review.text}"</p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Submit Review */}
           <div className="md:w-96">
             <div className="bg-white p-6 rounded-xl shadow-md border border-coffee-100 sticky top-24">
               <h3 className="text-xl font-bold text-coffee-800 mb-4">Leave a Review</h3>
+              {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
               {submitted && <p className="text-green-600 text-sm mb-3">Thank you for your review!</p>}
               <form onSubmit={submitReview} className="space-y-4">
                 <div>

@@ -1,28 +1,57 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Search, Filter, Star, Plus, Minus } from 'lucide-react'
-import { menuItems, categories, dietaryOptions } from '../data/mokha'
+import { categories, dietaryOptions } from '../data/mokha'
 
 export default function Menu() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
   const [dietary, setDietary] = useState('all')
   const [priceRange, setPriceRange] = useState(20)
-  const [cart, setCart] = useState({})
   const [showFilters, setShowFilters] = useState(false)
+  const [cart, setCart] = useState({})
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [orderInfo, setOrderInfo] = useState({ name: '', email: '' })
   const [orderSuccess, setOrderSuccess] = useState(false)
+  const [menuItems, setMenuItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const filtered = useMemo(() => {
-    return menuItems.filter(item => {
-      const matchSearch = item.name.toLowerCase().includes(search.toLowerCase()) || item.description.toLowerCase().includes(search.toLowerCase())
-      const matchCat = category === 'all' || item.category === category
-      const matchDiet = dietary === 'all' || item.dietary.includes(dietary)
-      const matchPrice = item.price <= priceRange
-      return matchSearch && matchCat && matchDiet && matchPrice
-    })
+  const fetchMenu = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      if (category && category !== 'all') params.append('category', category)
+      if (dietary && dietary !== 'all') params.append('dietary', dietary)
+      params.append('priceMax', priceRange)
+      const res = await fetch(`/api/menu?${params.toString()}`)
+      if (!res.ok) throw new Error('Failed to fetch menu')
+      const data = await res.json()
+      setMenuItems(data.map(item => ({ ...item, price: Number(item.price) })))
+    } catch (err) {
+      setError(err.message)
+      setMenuItems([])
+    } finally {
+      setLoading(false)
+    }
   }, [search, category, dietary, priceRange])
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    fetchMenu()
+  }, [fetchMenu])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const cartItems = useMemo(() => {
+    return Object.keys(cart).map(id => {
+      const item = menuItems.find(i => i.id === parseInt(id))
+      return item ? { ...item, qty: cart[id] } : null
+    }).filter(Boolean)
+  }, [cart, menuItems])
+
+  const total = cartItems.reduce((sum, i) => sum + i.price * i.qty, 0)
 
   const addToCart = (id) => {
     setCart(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
@@ -37,12 +66,38 @@ export default function Menu() {
     })
   }
 
-  const cartItems = Object.keys(cart).map(id => ({
-    ...menuItems.find(i => i.id === parseInt(id)),
-    qty: cart[id]
-  }))
-
-  const total = cartItems.reduce((sum, i) => sum + i.price * i.qty, 0)
+  const handleCheckout = async (e) => {
+    e.preventDefault()
+    try {
+      const orderItems = cartItems.map(ci => ({
+        menu_item_id: ci.id,
+        quantity: ci.qty,
+        price: ci.price
+      }))
+      const payload = {
+        customer_name: orderInfo.name,
+        email: orderInfo.email,
+        items: orderItems,
+        total: total
+      }
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to place order')
+      setOrderSuccess(true)
+      setTimeout(() => {
+        setCheckoutOpen(false)
+        setCart({})
+        setOrderInfo({ name: '', email: '' })
+        setOrderSuccess(false)
+      }, 2000)
+    } catch (err) {
+      alert('Order failed: ' + err.message)
+    }
+  }
 
   return (
     <div className="bg-cream min-h-screen">
@@ -97,75 +152,63 @@ export default function Menu() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filtered.map(item => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-xl shadow-md overflow-hidden border border-coffee-100 flex flex-col"
-            >
-              <img src={item.image} alt={item.name} className="w-full h-48 object-cover" />
-              <div className="p-4 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-coffee-800">{item.name}</h3>
-                  <span className="text-lg font-bold text-gold">${item.price.toFixed(2)}</span>
-                </div>
-                <p className="text-sm text-coffee-500 mb-3 flex-1">{item.description}</p>
-                <div className="flex gap-1 mb-3 flex-wrap">
-                  {item.dietary.map(d => (
-                    <span key={d} className="text-xs bg-coffee-100 text-coffee-600 px-2 py-1 rounded-full">{d}</span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    {cart[item.id] ? (
-                      <>
-                        <button onClick={() => removeFromCart(item.id)} className="w-8 h-8 rounded-full bg-coffee-100 hover:bg-coffee-200 flex items-center justify-center" aria-label="Remove one"><Minus className="w-4 h-4" /></button>
-                        <span className="w-6 text-center text-sm font-medium">{cart[item.id]}</span>
-                      </>
-                    ) : null}
-                    <button onClick={() => addToCart(item.id)} className="w-8 h-8 rounded-full bg-coffee-700 text-white hover:bg-coffee-600 flex items-center justify-center" aria-label="Add one"><Plus className="w-4 h-4" /></button>
+        {loading ? (
+          <p className="text-center text-coffee-600 py-12">Loading menu...</p>
+        ) : error ? (
+          <p className="text-center text-red-600 py-12">{error}</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {menuItems.map(item => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-xl shadow-md overflow-hidden border border-coffee-100 flex flex-col"
+              >
+                <img src={item.image} alt={item.name} className="w-full h-48 object-cover" />
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-coffee-800">{item.name}</h3>
+                    <span className="text-lg font-bold text-gold">${item.price.toFixed(2)}</span>
                   </div>
-                  <div className="flex items-center gap-1 text-gold text-sm">
-                    <Star className="w-4 h-4 fill-current" /> 4.{5 + (item.id % 5)}
+                  <p className="text-sm text-coffee-500 mb-3 flex-1">{item.description}</p>
+                  <div className="flex gap-1 mb-3 flex-wrap">
+                    {item.dietary.map(d => (
+                      <span key={d} className="text-xs bg-coffee-100 text-coffee-600 px-2 py-1 rounded-full">{d}</span>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-2">
+                      {cart[item.id] ? (
+                        <>
+                          <button onClick={() => removeFromCart(item.id)} className="w-8 h-8 rounded-full bg-coffee-100 hover:bg-coffee-200 flex items-center justify-center" aria-label="Remove one"><Minus className="w-4 h-4" /></button>
+                          <span className="w-6 text-center text-sm font-medium">{cart[item.id]}</span>
+                        </>
+                      ) : null}
+                      <button onClick={() => addToCart(item.id)} className="w-8 h-8 rounded-full bg-coffee-700 text-white hover:bg-coffee-600 flex items-center justify-center" aria-label="Add one"><Plus className="w-4 h-4" /></button>
+                    </div>
+                    <div className="flex items-center gap-1 text-gold text-sm">
+                      <Star className="w-4 h-4 fill-current" /> 4.{5 + (item.id % 5)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
-        {filtered.length === 0 && (
+        {!loading && !error && menuItems.length === 0 && (
           <div className="text-center py-12 text-coffee-500">No items match your filters. Try adjusting your criteria.</div>
         )}
       </section>
 
-      {/* Cart Summary */}
-      {cartItems.length > 0 && (
-        <div className="fixed bottom-4 right-4 bg-coffee-800 text-white p-4 rounded-xl shadow-2xl max-w-sm">
-          <h3 className="font-semibold mb-2">Your Order</h3>
-          <div className="max-h-40 overflow-y-auto mb-2 space-y-1 text-sm">
-            {cartItems.map(item => (
-              <div key={item.id} className="flex justify-between">
-                <span>{item.qty}x {item.name}</span>
-                <span>${(item.price * item.qty).toFixed(2)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-coffee-600 pt-2 flex justify-between font-semibold">
-            <span>Total</span>
-            <span className="text-gold">${total.toFixed(2)}</span>
-          </div>
-          <button onClick={() => setCheckoutOpen(true)} className="w-full mt-3 bg-gold text-coffee-900 font-semibold py-2 rounded-lg hover:bg-yellow-600 transition-colors">Checkout</button>
-        </div>
-      )}
+      {/* Checkout Modal */}
       {checkoutOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setCheckoutOpen(false)}>
           <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white p-6 rounded-xl max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-2xl font-bold text-coffee-800 mb-4">Checkout</h2>
             {!orderSuccess ? (
-              <form onSubmit={e => { e.preventDefault(); setOrderSuccess(true); setTimeout(() => { setCheckoutOpen(false); setCart({}); setOrderSuccess(false); setOrderInfo({ name: '', email: '' }) }, 2000) }} className="space-y-4">
+              <form onSubmit={handleCheckout} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-coffee-700 mb-1">Name</label>
                   <input type="text" required value={orderInfo.name} onChange={e => setOrderInfo({ ...orderInfo, name: e.target.value })} className="w-full p-2 rounded border border-coffee-200 focus:outline-none focus:ring-2 focus:ring-coffee-400" />
@@ -192,6 +235,26 @@ export default function Menu() {
             )}
           </motion.div>
         </motion.div>
+      )}
+
+      {/* Cart Summary */}
+      {cartItems.length > 0 && (
+        <div className="fixed bottom-4 right-4 bg-coffee-800 text-white p-4 rounded-xl shadow-2xl max-w-sm z-40">
+          <h3 className="font-semibold mb-2">Your Order</h3>
+          <div className="max-h-40 overflow-y-auto mb-2 space-y-1 text-sm">
+            {cartItems.map(item => (
+              <div key={item.id} className="flex justify-between">
+                <span>{item.qty}x {item.name}</span>
+                <span>${(item.price * item.qty).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-coffee-600 pt-2 flex justify-between font-semibold">
+            <span>Total</span>
+            <span className="text-gold">${total.toFixed(2)}</span>
+          </div>
+          <button onClick={() => setCheckoutOpen(true)} className="w-full mt-3 bg-gold text-coffee-900 font-semibold py-2 rounded-lg hover:bg-yellow-600 transition-colors">Checkout</button>
+        </div>
       )}
     </div>
   )
