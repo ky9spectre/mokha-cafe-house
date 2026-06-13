@@ -1,15 +1,7 @@
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import pool from './db.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+import { schemaSql, seedSql } from './utils/sqlContent.js'
 
 async function init() {
-  const schemaSql = fs.readFileSync(path.join(__dirname, 'utils', 'schema.sql'), 'utf8')
-  const seedSql = fs.readFileSync(path.join(__dirname, 'utils', 'seed.sql'), 'utf8')
-
   const client = await pool.connect()
   try {
     console.log('Creating tables...')

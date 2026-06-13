@@ -80,9 +80,14 @@ export default function Menu() {
         items: orderItems,
         total: total
       }
+      const token = localStorage.getItem('token')
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload)
       })
       const data = await res.json()

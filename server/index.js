@@ -2,9 +2,6 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import dotenv from 'dotenv'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 
 import pool from './db.js'
 import menuRouter from './routes/menu.js'
@@ -13,11 +10,9 @@ import reservationsRouter from './routes/reservations.js'
 import reviewsRouter from './routes/reviews.js'
 import blogRouter from './routes/blog.js'
 import authRouter from './routes/auth.js'
+import { schemaSql, seedSql } from './utils/sqlContent.js'
 
 dotenv.config()
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -26,7 +21,7 @@ app.use(cors())
 app.use(helmet())
 app.use(express.json())
 
-// Simple health check
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
@@ -48,8 +43,6 @@ app.use('/api/auth', authRouter)
     const initialized = res.rows[0].to_regclass
     if (!initialized) {
       console.log('Initializing database...')
-      const schemaSql = fs.readFileSync(path.join(__dirname, 'utils', 'schema.sql'), 'utf8')
-      const seedSql = fs.readFileSync(path.join(__dirname, 'utils', 'seed.sql'), 'utf8')
       await client.query(schemaSql)
       await client.query(seedSql)
       console.log('✅ Database initialized')
@@ -71,6 +64,10 @@ app.use('/api/auth', authRouter)
   }
 })()
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-})
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`)
+  })
+}
+
+export default app

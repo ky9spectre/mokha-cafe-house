@@ -1,13 +1,35 @@
+import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, Clock } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { blogPosts } from '../data/mokha'
 
 export default function BlogPost() {
   const { id } = useParams()
-  const post = blogPosts.find(p => p.id === parseInt(id))
+  const [post, setPost] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  if (!post) return <div className="text-center py-20 text-coffee-600">Post not found.</div>
+  useEffect(() => {
+    setLoading(true)
+    setError('')
+    fetch(`/api/blog/${id}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Post not found')
+        return res.json()
+      })
+      .then(data => {
+        setPost(data)
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error('Failed to fetch blog post:', err)
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [id])
+
+  if (loading) return <div className="text-center py-20 text-coffee-600">Loading post...</div>
+  if (error || !post) return <div className="text-center py-20 text-red-600">{error || 'Post not found.'}</div>
 
   return (
     <div className="bg-cream min-h-screen">

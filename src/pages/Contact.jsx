@@ -5,11 +5,37 @@ import { Send, Phone, Mail, MapPin, Clock } from 'lucide-react'
 export default function Contact() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', date: '', time: '', guests: 2, message: '' })
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
-    setSubmitted(true)
-    setTimeout(() => { setSubmitted(false); setForm({ name: '', email: '', phone: '', date: '', time: '', guests: 2, message: '' }) }, 3000)
+    setError('')
+    try {
+      const payload = {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        reservation_date: form.date,
+        reservation_time: form.time,
+        guests: form.guests,
+        special_requests: form.message
+      }
+      const res = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to complete reservation')
+
+      setSubmitted(true)
+      setTimeout(() => {
+        setSubmitted(false)
+        setForm({ name: '', email: '', phone: '', date: '', time: '', guests: 2, message: '' })
+      }, 3000)
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   const timeSlots = ['6:00 AM', '7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM']
@@ -28,7 +54,8 @@ export default function Contact() {
           <div className="lg:col-span-2">
             {!submitted ? (
               <motion.form onSubmit={submit} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white p-8 rounded-xl shadow-md border border-coffee-100 space-y-5">
-                <h2 className="text-2xl font-bold text-coffee-800 mb-4">Make a Reservation</h2>
+                <h2 className="text-2xl font-bold text-coffee-800 mb-2">Make a Reservation</h2>
+                {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-coffee-700 mb-1">Full Name</label>

@@ -21,6 +21,56 @@ html {
 
 body {
   margin: 0;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  background-color: #f5f0eb; /* cream */
+  color: #3e2614; /* coffee-700 */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* Custom premium aesthetics */
+.glass-nav {
+  background-color: rgba(42, 26, 14, 0.85); /* coffee-800 with transparency */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(229, 219, 210, 0.5);
+}
+
+.premium-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.premium-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+.premium-btn:hover::after {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Glow hovers */
+.glow-gold:hover {
+  box-shadow: 0 0 15px rgba(200, 164, 78, 0.4);
 }

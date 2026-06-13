@@ -1,6 +1,7 @@
 import express from 'express'
 import pool from '../db.js'
 import { authenticate } from '../middleware/auth.js'
+import jwt from 'jsonwebtoken'
 
 const router = express.Router()
 const isDev = process.env.NODE_ENV !== 'production'
@@ -42,17 +43,30 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 })
 
-// POST create order (guest allowed)
+// POST create order (guest allowed, user linked if logged in)
 router.post('/', async (req, res) => {
   const { customer_name, email, phone, items, total } = req.body
   if (!customer_name || !email || !items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Missing required fields' })
   }
 
+  // Optional Authentication for logging orders
+  let user_id = null
+  const authHeader = req.headers.authorization
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1]
+    try {
+      const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret'
+      const verified = jwt.verify(token, JWT_SECRET)
+      user_id = verified.id
+    } catch (err) {
+      console.warn('Invalid token provided for guest checkout:', err.message)
+    }
+  }
+
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    const user_id = req.user?.id || null
     const orderRes = await client.query(
       'INSERT INTO orders (customer_name, email, phone, total, user_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
       [customer_name, email, phone || null, total, user_id]

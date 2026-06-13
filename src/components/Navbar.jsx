@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -22,6 +22,10 @@ export default function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  useEffect(() => {
+    setUser(getStoredUser())
+  }, [location])
+
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -39,7 +43,7 @@ export default function Navbar() {
   ]
 
   return (
-    <nav className="sticky top-0 z-50 bg-coffee-800 text-white shadow-lg">
+    <nav className="sticky top-0 z-50 glass-nav text-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
