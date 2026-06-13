@@ -2,6 +2,7 @@ import express from 'express'
 import pool from '../db.js'
 
 const router = express.Router()
+const isDev = process.env.NODE_ENV !== 'production'
 
 // GET /api/menu - optionally filter by category, dietary, priceMax, search
 router.get('/', async (req, res) => {
@@ -41,7 +42,8 @@ router.get('/', async (req, res) => {
     res.json(result.rows)
   } catch (err) {
     console.error('Menu fetch error:', err)
-    res.status(500).json({ error: 'Server error' })
+    if (isDev) res.status(500).json({ error: err.message })
+    else res.status(500).json({ error: 'Server error' })
   }
 })
 

@@ -2,6 +2,7 @@ import express from 'express'
 import pool from '../db.js'
 
 const router = express.Router()
+const isDev = process.env.NODE_ENV !== 'production'
 
 // GET all blog posts
 router.get('/', async (req, res) => {
@@ -12,7 +13,8 @@ router.get('/', async (req, res) => {
     res.json(result.rows)
   } catch (err) {
     console.error('Fetch blog posts error:', err)
-    res.status(500).json({ error: 'Failed to fetch blog posts' })
+    if (isDev) res.status(500).json({ error: err.message })
+    else res.status(500).json({ error: 'Failed to fetch blog posts' })
   }
 })
 
@@ -30,7 +32,8 @@ router.get('/:id', async (req, res) => {
     res.json(result.rows[0])
   } catch (err) {
     console.error('Fetch blog post error:', err)
-    res.status(500).json({ error: 'Failed to fetch blog post' })
+    if (isDev) res.status(500).json({ error: err.message })
+    else res.status(500).json({ error: 'Failed to fetch blog post' })
   }
 })
 
